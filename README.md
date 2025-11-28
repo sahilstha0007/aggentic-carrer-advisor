@@ -37,11 +37,27 @@ This project demonstrates the three core pillars of Generative AI development:
 ```text
 agentic-career-advisor/
 ├── data/
-│   ├── jobs.csv             # The dataset containing job roles, skills, and locations
-│   └── create_data.py       # Script to generate synthetic job data
+│   └── jobs.csv             # The dataset containing job roles, skills, and locations
 ├── src/
 │   ├── ingest.py            # Logic to load CSV, create embeddings, and save to ChromaDB
 │   └── tools.py             # Defines the 'search_jobs' tool for the Agent
 ├── main.py                  # The entry point (Agent initialization and User UI)
 ├── requirements.txt         # Project dependencies
 └── README.md                # Documentation
+
+
+
+## ⚡ Quick Start
+
+### 1. Setup Environment
+Requires Python 3.10 - 3.12.
+```bash
+git clone <your-repo-url>
+cd agentic-career-advisor
+
+# Create and activate virtual environment
+python3.11 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt

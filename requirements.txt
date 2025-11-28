@@ -1,6 +1,10 @@
 langchain
-langchain-google-genai
 langchain-community
+langchain-google-genai
+langgraph
 chromadb
+google-generativeai
 pandas
 python-dotenv
+sentence-transformers
+langchain-huggingface

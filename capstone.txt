@@ -1,0 +1,221 @@
+==============================================================================
+GOOGLE X KAGGLE GEN AI COURSE: CAPSTONE PROJECT SUBMISSION
+PROJECT TITLE: Agentic Career Advisor
+AUTHOR: [Your Name]
+==============================================================================
+
+--- SECTION 1: PROJECT DESCRIPTION (For Submission) ---
+
+[Project Summary]
+The Agentic Career Advisor is an AI-powered application that helps job seekers find the right roles based on their resume summaries. Unlike simple keyword matching, this project uses an "Agentic Workflow" where an AI decision-maker actively analyzes a user's profile, decides to use a semantic search tool to query a job database (RAG), and then reasons about the best fit.
+
+[Key Gen AI Capabilities Demonstrated]
+1. Embeddings & Vector Search (RAG): Uses GoogleGenerativeAIEmbeddings to convert job descriptions into vectors and stores them in ChromaDB for semantic retrieval.
+2. Function Calling (Tools): Defines a custom Python function (`search_jobs`) that the AI Agent autonomously decides to call when it needs information.
+3. Agentic Workflow (LangGraph): Uses LangGraph's pre-built ReAct agent to orchestrate the conversation, manage state, and execute tools.
+
+[Tech Stack]
+- Model: Gemini 1.5 Pro
+- Framework: LangChain & LangGraph
+- Database: ChromaDB (Local Vector Store)
+- Language: Python 3.11
+
+==============================================================================
+
+--- SECTION 2: SETUP INSTRUCTIONS (Local Machine) ---
+
+[Step 1: Prerequisites]
+- You must use Python 3.11 or 3.12 (NOT Python 3.14).
+- You need a Google API Key from AI Studio.
+
+[Step 2: Create Folder Structure]
+Open your terminal and run:
+   mkdir agentic-career-advisor
+   cd agentic-career-advisor
+   mkdir src
+
+[Step 3: Setup Virtual Environment]
+   sudo dnf install python3.11  (If on Fedora/Linux)
+   python3.11 -m venv venv
+   source venv/bin/activate
+
+[Step 4: Install Dependencies]
+Create a file named `requirements.txt` (see Section 3 below) and run:
+   pip install -r requirements.txt
+
+[Step 5: Configure Secrets]
+Create a file named `.env` and add your key:
+   GOOGLE_API_KEY=your_actual_api_key_here
+
+[Step 6: Create Code Files]
+Copy the code from Section 3 into the respective files (`main.py`, `src/ingest.py`, etc.).
+
+[Step 7: Run]
+   python main.py
+
+==============================================================================
+
+--- SECTION 3: THE CODE ---
+
+[FILE: requirements.txt]
+------------------------------------------------------------------------------
+langchain
+langchain-google-genai
+langchain-community
+chromadb
+pandas
+python-dotenv
+langgraph
+------------------------------------------------------------------------------
+
+[FILE: .env]
+------------------------------------------------------------------------------
+GOOGLE_API_KEY=paste_your_key_here_no_quotes
+------------------------------------------------------------------------------
+
+[FILE: src/ingest.py]
+------------------------------------------------------------------------------
+import os
+import pandas as pd
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_core.documents import Document
+
+# Define persistence directory
+DB_PATH = "./chroma_db"
+
+def load_and_embed_data():
+    """
+    Loads synthetic job data and stores it in ChromaDB.
+    """
+    print("🔄 Loading data...")
+
+    # --- SIMULATE DATA ---
+    # In a real app, you would load a CSV here.
+    jobs = [
+        {"title": "Junior Python Dev", "desc": "Looking for fresh grad with Python, SQL, and Git skills. Remote work available."},
+        {"title": "Senior Data Scientist", "desc": "Requires 5+ years exp. Expert in NLP, TensorFlow, and AWS cloud architecture."},
+        {"title": "Frontend Engineer", "desc": "React, TypeScript, and CSS expert needed for UI development. Experience with Tailwind is a plus."},
+        {"title": "DevOps Engineer", "desc": "CI/CD pipelines, Docker, Kubernetes, and Azure experience required."},
+        {"title": "Product Manager", "desc": "Manage agile teams. Scrum master certification required. Excellent communication skills."}
+    ]
+    
+    # Convert to LangChain Documents
+    docs = []
+    for job in jobs:
+        doc = Document(
+            page_content=f"Title: {job['title']}\nDescription: {job['desc']}",
+            metadata={"title": job['title']}
+        )
+        docs.append(doc)
+
+    # --- CREATE EMBEDDINGS ---
+    print("🧠 Generating Embeddings (This may take a moment)...")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+
+    # --- STORE IN CHROMA ---
+    vector_store = Chroma.from_documents(
+        documents=docs, 
+        embedding=embeddings,
+        persist_directory=DB_PATH
+    )
+    print(f"✅ Success! Database saved to {DB_PATH}")
+    return vector_store
+
+def get_vector_store():
+    """Returns the existing vector store."""
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+    return Chroma(persist_directory=DB_PATH, embedding_function=embeddings)
+------------------------------------------------------------------------------
+
+[FILE: src/tools.py]
+------------------------------------------------------------------------------
+from langchain.tools import tool
+from src.ingest import get_vector_store
+
+@tool
+def search_jobs(query: str):
+    """
+    Searches the job database for relevant roles based on skills or summary.
+    Input should be a search string (e.g., 'Python developer with SQL skills').
+    Returns a list of matching job titles and descriptions.
+    """
+    print(f"\n🔎 [TOOL ACTION] Searching database for: '{query}'")
+    
+    try:
+        db = get_vector_store()
+        results = db.similarity_search(query, k=3)
+        
+        # Format results nicely for the LLM
+        output = "\n".join([f"- {doc.page_content}" for doc in results])
+        return output
+    except Exception as e:
+        return f"Error searching database: {str(e)}"
+------------------------------------------------------------------------------
+
+[FILE: main.py]
+------------------------------------------------------------------------------
+import os
+from dotenv import load_dotenv
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langgraph.prebuilt import create_react_agent
+from src.ingest import load_and_embed_data
+from src.tools import search_jobs
+
+# Load API Key
+load_dotenv()
+
+def main():
+    # 1. Check if DB exists, if not, create it
+    if not os.path.exists("./chroma_db"):
+        print("⚡ Database not found. Initializing...")
+        load_and_embed_data()
+    
+    # 2. Setup LLM (The Brain)
+    # We use temperature=0 for consistent, factual answers
+    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0)
+
+    # 3. Setup Tools (The Hands)
+    tools = [search_jobs]
+
+    # 4. Initialize the Agent (Using LangGraph)
+    # create_react_agent automatically binds the LLM to the tools
+    agent_executor = create_react_agent(llm, tools)
+
+    # 5. User Input
+    print("--------------------------------------------------")
+    print("🤖 WELCOME TO THE AGENTIC CAREER ADVISOR")
+    print("--------------------------------------------------")
+    
+    user_resume = input("\n📄 Paste a resume summary (or press Enter for default): ")
+    if not user_resume:
+        user_resume = "I am a fresh graduate with skills in Python and SQL looking for backend roles."
+
+    print(f"\nProcessing profile: {user_resume}")
+    print("\n🤖 AI Agent is thinking...\n")
+
+    # 6. Run Agent
+    # We construct a prompt that forces the agent to use the tool
+    query = f"""
+    Act as a Career Coach.
+    1. Analyze this user profile: "{user_resume}"
+    2. Search for the best matching jobs using your tool.
+    3. Provide a final recommendation explaining WHY the job fits.
+    """
+    
+    # LangGraph invoke expects a dictionary with a "messages" key
+    events = agent_executor.invoke({"messages": [("user", query)]})
+
+    # 7. Extract Final Answer
+    # The last message in the list is the AI's final response
+    final_response = events["messages"][-1].content
+    
+    print("--------------------------------------------------")
+    print("💡 FINAL RECOMMENDATION:")
+    print("--------------------------------------------------")
+    print(final_response)
+    print("--------------------------------------------------")
+
+if __name__ == "__main__":
+    main()
+------------------------------------------------------------------------------

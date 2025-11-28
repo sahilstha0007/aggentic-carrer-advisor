@@ -1,25 +1,23 @@
 import os
 import pandas as pd
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+# --- NEW IMPORTS (Fixes Deprecation Warnings) ---
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
 # --- CONFIGURATION ---
-# This creates the database in your root folder
 DB_PATH = "./chroma_db"
-# This looks for the CSV inside the data folder
 CSV_PATH = "./data/jobs.csv" 
 
 def load_and_embed_data():
     print(f"🔄 Loading data from {CSV_PATH}...")
 
-    # Check if the file exists at the specific path
     if not os.path.exists(CSV_PATH):
-        raise FileNotFoundError(f"❌ Could not find file at: {CSV_PATH}\n   Make sure 'jobs.csv' is inside the 'data' folder.")
+        raise FileNotFoundError(f"❌ Could not find file at: {CSV_PATH}")
 
     try:
         df = pd.read_csv(CSV_PATH)
-        df = df.fillna("") # Fill missing values
+        df = df.fillna("")
         print(f"   Found {len(df)} jobs in the CSV.")
     except Exception as e:
         print(f"❌ Error reading CSV: {e}")
@@ -27,8 +25,6 @@ def load_and_embed_data():
 
     docs = []
     for index, row in df.iterrows():
-        # Combine columns into a single text block for the AI to read
-        # Using .get() prevents errors if a column is missing
         full_content = (
             f"Title: {row.get('title', '')}\n"
             f"Description: {row.get('description', '')}\n"

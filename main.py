@@ -1,12 +1,5 @@
 import os
 import warnings
-import sys
-
-# --- SILENCE WARNINGS (For a Clean Demo) ---
-warnings.filterwarnings("ignore")
-# Redirect stderr to devnull temporarily if needed, but filterwarnings usually suffices
-os.environ["GRPC_VERBOSITY"] = "ERROR"
-os.environ["GLOG_minloglevel"] = "2"
 
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -15,53 +8,69 @@ from langgraph.prebuilt import create_react_agent
 from src.ingest import load_and_embed_data
 from src.tools import search_jobs
 
+# Suppress warnings for a clean output
+warnings.filterwarnings("ignore")
+
+# Load API Key
 load_dotenv()
 
+
 def main():
-    # If no database, create it
+    # 1. Validation: Check if API Key exists
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        print("❌ Error: GOOGLE_API_KEY not found. Please check your .env file.")
+        return
+
+    # 2. Check if DB exists, if not, create it
     if not os.path.exists("./chroma_db"):
         print("⚡ Database not found. Initializing...")
         load_and_embed_data()
 
-    # LLM (Brain) - Using the modern Gemini 2.0
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+    # Fallback option if 2.5 is rate limited
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-flash-latest", temperature=0, google_api_key=api_key
+    )
 
-    # Tools (Hands)
+    # 4. Setup Tools (The Hands)
     tools = [search_jobs]
 
-    # Agent (Boss)
-    agent = create_react_agent(llm, tools)
+    # 5. Initialize the Agent
+    agent_executor = create_react_agent(llm, tools)
 
+    # 6. User Input
     print("--------------------------------------------------")
-    print("🤖 WELCOME TO AGENTIC CAREER ADVISOR")
+    print("🤖 WELCOME TO THE AGENTIC CAREER ADVISOR")
     print("--------------------------------------------------")
-    
-    user_resume = input("\n📄 Paste resume summary: ")
 
+    user_resume = input("\n📄 Paste a resume summary (or press Enter for default): ")
     if not user_resume:
         user_resume = "I am a fresh graduate with skills in Python and SQL looking for backend roles."
 
+    print(f"\nProcessing profile: {user_resume}")
+    print("\n🤖 AI Agent is thinking...\n")
+
+    # 7. Run Agent
     query = f"""
-    Act as a Career Advisor.
-    1. Analyze this profile: "{user_resume}".
-    2. Use the 'search_jobs' tool to find matching roles.
-    3. IMPORTANT: You must use the tool results to give a recommendation.
-    4. Provide the BEST job recommendation with clear reasons.
+    Act as a Career Coach.
+    1. Analyze this user profile: "{user_resume}"
+    2. Search for the best matching jobs using your tool.
+    3. Provide a final recommendation explaining WHY the job fits.
     """
 
-    print("\n🤖 Thinking...\n")
+    try:
+        events = agent_executor.invoke({"messages": [("user", query)]})
+        final_response = events["messages"][-1].content
 
-    # Run the Agent
-    result = agent.invoke({"messages": [("user", query)]})
+        print("--------------------------------------------------")
+        print("💡 FINAL RECOMMENDATION:")
+        print("--------------------------------------------------")
+        print(final_response)
+        print("--------------------------------------------------")
 
-    # Get Final Answer
-    final_answer = result["messages"][-1].content
+    except Exception as e:
+        print(f"❌ An error occurred during execution: {e}")
 
-    print("--------------------------------------------------")
-    print("💡 FINAL RECOMMENDATION")
-    print("--------------------------------------------------")
-    print(final_answer)
-    print("--------------------------------------------------")
 
 if __name__ == "__main__":
     main()

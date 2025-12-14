@@ -1,10 +1,8 @@
 import os
 import warnings
-
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent
-
 from src.ingest import load_and_embed_data
 from src.tools import search_jobs
 
@@ -13,7 +11,6 @@ warnings.filterwarnings("ignore")
 
 # Load API Key
 load_dotenv()
-
 
 def main():
     # 1. Validation: Check if API Key exists
@@ -26,10 +23,13 @@ def main():
     if not os.path.exists("./chroma_db"):
         print("⚡ Database not found. Initializing...")
         load_and_embed_data()
-
-    # Fallback option if 2.5 is rate limited
+    
+    # 3. Setup LLM (The Brain)
+    # Using gemini-2.5-flash as verified in your environment
     llm = ChatGoogleGenerativeAI(
-        model="gemini-flash-latest", temperature=0, google_api_key=api_key
+        model="gemini-2.5-flash", 
+        temperature=0,
+        google_api_key=api_key 
     )
 
     # 4. Setup Tools (The Hands)
@@ -42,7 +42,7 @@ def main():
     print("--------------------------------------------------")
     print("🤖 WELCOME TO THE AGENTIC CAREER ADVISOR")
     print("--------------------------------------------------")
-
+    
     user_resume = input("\n📄 Paste a resume summary (or press Enter for default): ")
     if not user_resume:
         user_resume = "I am a fresh graduate with skills in Python and SQL looking for backend roles."
@@ -57,20 +57,34 @@ def main():
     2. Search for the best matching jobs using your tool.
     3. Provide a final recommendation explaining WHY the job fits.
     """
-
+    
     try:
         events = agent_executor.invoke({"messages": [("user", query)]})
-        final_response = events["messages"][-1].content
-
+        
+        # --- OUTPUT FORMATTING FIX ---
+        # Gemini 2.5 often returns a list [{'type': 'text', 'text': '...'}]
+        # We need to extract just the text to make it look pretty.
+        raw_content = events["messages"][-1].content
+        
+        final_response = ""
+        
+        if isinstance(raw_content, list):
+            for part in raw_content:
+                if isinstance(part, dict) and "text" in part:
+                    final_response += part["text"]
+                else:
+                    final_response += str(part)
+        else:
+            final_response = str(raw_content)
+        
         print("--------------------------------------------------")
         print("💡 FINAL RECOMMENDATION:")
         print("--------------------------------------------------")
         print(final_response)
         print("--------------------------------------------------")
-
+        
     except Exception as e:
         print(f"❌ An error occurred during execution: {e}")
-
 
 if __name__ == "__main__":
     main()

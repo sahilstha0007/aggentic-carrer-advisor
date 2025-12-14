@@ -23,7 +23,7 @@ This project demonstrates the three core pillars of Generative AI development:
 
 ## 🛠️ Tech Stack
 
-*   **LLM:** Google Gemini 2.0 Flash
+*   **LLM:** Google gemini-flash-latest
 *   **Orchestration:** LangGraph & LangChain
 *   **Embeddings:** Sentence-Transformers (HuggingFace)
 *   **Vector Store:** ChromaDB

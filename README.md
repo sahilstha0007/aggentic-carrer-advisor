@@ -55,6 +55,9 @@ Requires Python 3.10 - 3.12.
 git clone <your-repo-url>
 cd agentic-career-advisor
 
+# Ensure you have installed python 3.11 version which is compatible with ai
+python3.11 --version
+
 # Create and activate virtual environment
 python3.11 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
